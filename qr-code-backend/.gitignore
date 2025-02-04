@@ -1,0 +1,11 @@
+# Ignore node_modules (dependencies)
+node_modules/
+
+# Ignore environment variables (IMPORTANT)
+.env
+
+# Ignore uploaded files (if stored locally)
+uploads/
+
+# Ignore logs
+*.log
