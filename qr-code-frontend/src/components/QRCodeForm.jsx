@@ -80,7 +80,7 @@ const QRCodeForm = () => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await fetch("http://localhost:5000/api/upload", {
+      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -99,7 +99,7 @@ const QRCodeForm = () => {
       formData.append("photos", file);
     });
     try {
-      const response = await fetch("http://localhost:5000/api/upload-gallery", {
+      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/upload-gallery", {
         method: "POST",
         body: formData,
       });
@@ -120,7 +120,7 @@ const QRCodeForm = () => {
     const formData = new FormData();
     formData.append("mp3", file);
     try {
-      const response = await fetch("http://localhost:5000/api/upload-mp3", {
+      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/upload-mp3", {
         method: "POST",
         body: formData,
       });
@@ -296,7 +296,7 @@ END:VCARD`;
       }
 
       // Generate PNG QR code
-      const response = await fetch("http://localhost:5000/api/generate-qr", {
+      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/generate-qr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: formattedText }),
