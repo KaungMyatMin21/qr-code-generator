@@ -1,4 +1,7 @@
+// ✅ Ensure all imports are at the very top
 import React, { useState } from "react";
+import { ClipLoader } from "react-spinners";
+
 import {
   FaLink,
   FaEnvelope,
@@ -15,65 +18,79 @@ import {
 } from "react-icons/fa";
 import "./QRCodeForm.css";
 
+// ✅ Define the component function after imports
 const QRCodeForm = () => {
-  // Active type & QR code image
+  // State declarations
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [activeType, setActiveType] = useState(null);
   const [qrCodePNG, setQrCodePNG] = useState("");
-
-  // URL
+  
+  // Other state variables (for form fields)
   const [url, setUrl] = useState("");
-
-  // Message
   const [message, setMessage] = useState("");
-
-  // Email
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-
-  // PDF
   const [pdfURL, setPdfURL] = useState("");
   const [pdfFile, setPdfFile] = useState(null);
-
-  // Gallery
   const [galleryFiles, setGalleryFiles] = useState([]);
-
-  // Twitter
   const [twitterHandle, setTwitterHandle] = useState("");
   const [tweetText, setTweetText] = useState("");
   const [twitterOption, setTwitterOption] = useState(null);
-
-  // MP3
   const [mp3File, setMp3File] = useState(null);
-
-  // Bitcoin
   const [cryptoType, setCryptoType] = useState("");
   const [bitcoinReceiver, setBitcoinReceiver] = useState("");
   const [bitcoinAmount, setBitcoinAmount] = useState("");
   const [bitcoinMessage, setBitcoinMessage] = useState("");
   const [bitcoinAddress, setBitcoinAddress] = useState("");
-
-  // App Store
   const [appStoreURL, setAppStoreURL] = useState("");
-
-  // vCard
   const [vcardFirstName, setVcardFirstName] = useState("");
   const [vcardLastName, setVcardLastName] = useState("");
   const [vcardPhone, setVcardPhone] = useState("");
   const [vcardEmail, setVcardEmail] = useState("");
   const [vcardOrganization, setVcardOrganization] = useState("");
   const [vcardTitle, setVcardTitle] = useState("");
-
-  // Facebook
   const [facebookOption, setFacebookOption] = useState(null);
   const [facebookURL, setFacebookURL] = useState("");
   const [facebookPostText, setFacebookPostText] = useState("");
-
-  // WiFi
   const [wifiSSID, setWifiSSID] = useState("");
   const [wifiPassword, setWifiPassword] = useState("");
   const [wifiEncryption, setWifiEncryption] = useState("WPA/WPA2");
   const [wifiHidden, setWifiHidden] = useState(false);
+
+  // Styles
+  const overlayStyle = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "8px",
+    transition: "opacity 0.3s ease",
+  };
+
+  const successMessageStyle = {
+    position: "absolute",
+    top: "20px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    backgroundColor: "#4CAF50",
+    color: "white",
+    padding: "10px 20px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    fontWeight: "500",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    opacity: 0,
+    animation: "slideDown 0.3s ease forwards",
+  };
 
   /** Upload PDF file to the backend */
   const uploadFile = async (file) => {
@@ -136,6 +153,8 @@ const QRCodeForm = () => {
   const handleGenerate = async () => {
     let formattedText = "";
     try {
+      setIsGenerating(true);
+      setShowSuccess(false);
       switch (activeType) {
         case "url":
           if (!url.trim()) {
@@ -303,9 +322,15 @@ END:VCARD`;
       });
       const data = await response.json();
       setQrCodePNG(data.qrCodePNG);
+      setQrCodePNG(data.qrCodePNG);
+      setTimeout(() => setShowSuccess(false), 3000);
+      setShowSuccess(true);
     } catch (error) {
       alert("Something went wrong.");
+    } finally {
+      setIsGenerating(false);
     }
+  
   };
 
   //Revised Download PNG function:
@@ -726,26 +751,59 @@ END:VCARD`;
         </div>
         <div className="qr-code-container">
           <h2>QR Code</h2>
-          <div className="qr-code-display">
+          <div className="qr-code-display"style={{ position: 'relative' }}>
+            {isGenerating && (
+              <div style={overlayStyle}>
+                <ClipLoader color="#4A90E2" size={40} />
+              </div>
+            )}
+            {showSuccess && (
+              <div style={successMessageStyle}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                QR Code Generated Successfully
+              </div>
+            )}
+
+          
             {qrCodePNG ? (
               <img
                 src={qrCodePNG}
                 alt="Generated QR Code"
-                style={{ height: "auto", objectFit: "contain", width: "100%", maxWidth: "300px", aspectRatio: "1/1" }}
+                style={{
+                  height: "auto",
+                  objectFit: "contain",
+                  width: "100%",
+                  maxWidth: "300px",
+                  aspectRatio: "1/1",
+                  filter: isGenerating ? "blur(2px)" : "none",
+                  transition: "filter 0.3s ease"
+                }}
               />
+              
             ) : (
-              <div className="placeholder">Your QR Code will appear here</div>
+              <div 
+                className="placeholder" 
+                style={{ opacity: isGenerating ? 0.5 : 1 }}
+              >
+                {isGenerating ? "Generating QR Code..." : "Your QR Code will appear here"}
+              </div>
             )}
-          </div>  
-          {qrCodePNG && (
-            <div className="download-buttons">
-              <button onClick={handleDownloadPNG}>Download PNG</button>
-            </div>
-          )}
+
+            
+          </div>
+          {qrCodePNG && !isGenerating && (
+              <div className="download-buttons">
+                <button onClick={handleDownloadPNG}>Download PNG</button>
+              </div>
+            )}
         </div>
       </div>
     </div>
+    
   );
-};
+}
+
 
 export default QRCodeForm;
