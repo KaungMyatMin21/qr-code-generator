@@ -18,6 +18,9 @@ import {
 } from "react-icons/fa";
 import "./QRCodeForm.css";
 
+const SERVER_URL = "https://qr-code-generator-ff72.onrender.com";
+
+
 // ✅ Define the component function after imports
 const QRCodeForm = () => {
   // State declarations
@@ -97,7 +100,7 @@ const QRCodeForm = () => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/upload", {
+      const response = await fetch("${SERVER_URL}/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -116,7 +119,7 @@ const QRCodeForm = () => {
       formData.append("photos", file);
     });
     try {
-      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/upload-gallery", {
+      const response = await fetch("${SERVER_URL}/api/upload-gallery", {
         method: "POST",
         body: formData,
       });
@@ -137,7 +140,7 @@ const QRCodeForm = () => {
     const formData = new FormData();
     formData.append("mp3", file);
     try {
-      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/upload-mp3", {
+      const response = await fetch("${SERVER_URL}/api/upload-mp3", {
         method: "POST",
         body: formData,
       });
@@ -315,7 +318,7 @@ END:VCARD`;
       }
 
       // Generate PNG QR code
-      const response = await fetch("https://qr-code-generator-ff72.onrender.com/api/generate-qr", {
+      const response = await fetch("${SERVER_URL}/api/generate-qr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: formattedText }),
