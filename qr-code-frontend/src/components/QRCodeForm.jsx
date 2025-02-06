@@ -91,7 +91,7 @@ const QRCodeForm = () => {
     animation: "slideDown 0.3s ease forwards",
   };
 
-  const BASE_URL = "https://qr-code-generator-xi-swart.vercel.app/";
+  const BASE_URL = "https://qr-code-generator-ff72.onrender.com";
 
   /** Upload PDF file to the backend */
   const uploadFile = async (file) => {
