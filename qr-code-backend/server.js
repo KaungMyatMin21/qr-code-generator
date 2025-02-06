@@ -25,6 +25,68 @@ app.get("/", (req, res) => {
   res.send("Backend Server is Running!");
 });
 
+const deleteTwoOldestFilesInSpecifiedBuckets = async () => {
+  try {
+    console.log("🕵️ Starting storage cleanup process for specified buckets...");
+
+    // Specify only the target buckets
+    const targetBuckets = ["pdf-files", "photo-gallery", "mp3-files"];
+
+    // Process each target bucket
+    for (const bucketName of targetBuckets) {
+      console.log(`\n🔍 Checking bucket: ${bucketName}`);
+
+      // List files in the bucket's root
+      const { data: files, error: listError } = await supabase.storage
+        .from(bucketName)
+        .list("");
+
+      if (listError) {
+        console.error(`⚠️ Error listing files in ${bucketName}:`, listError.message);
+        continue;
+      }
+
+      console.log(`📂 Found ${files.length} files in ${bucketName}`);
+
+      // Only proceed if there are at least 3 files in the bucket
+      if (files.length < 3) {
+        console.log(`✅ ${bucketName} doesn't need cleanup (less than 3 files)`);
+        continue;
+      }
+
+      // Sort files by creation date (oldest first)
+      const sortedFiles = files.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+      // Select the two oldest files
+      const filesToDelete = sortedFiles.slice(0, 2);
+      console.log(
+        `🗑 Files marked for deletion in ${bucketName}:`,
+        filesToDelete.map(f => f.name)
+      );
+
+      // Delete the selected files
+      const { error: deleteError } = await supabase.storage
+        .from(bucketName)
+        .remove(filesToDelete.map(f => f.name));
+
+      if (deleteError) {
+        console.error(`❌ Deletion failed for ${bucketName}:`, deleteError.message);
+      } else {
+        console.log(`✅ Successfully deleted files from ${bucketName}`);
+      }
+    }
+
+    console.log("🎉 Storage cleanup process completed for specified buckets");
+    return { success: true };
+  } catch (error) {
+    console.error("❌ Critical error in cleanup process:", error.message);
+    return { success: false, error };
+  }
+};
+
+
+
+
 const checkAndDeleteFiles = async (bucketName) => {
   try {
     console.log(`📂 Checking files in ${bucketName}...`);
@@ -267,4 +329,5 @@ app.use("/api", qrRoutes);
 // Start Server
 app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
+  //deleteTwoOldestFilesInSpecifiedBuckets();
 });

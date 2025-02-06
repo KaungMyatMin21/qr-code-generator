@@ -1,4 +1,3 @@
-// ✅ Ensure all imports are at the very top
 import React, { useState } from "react";
 import { ClipLoader } from "react-spinners";
 
@@ -17,9 +16,6 @@ import {
   FaIdCard,
 } from "react-icons/fa";
 import "./QRCodeForm.css";
-
-const SERVER_URL = "https://qr-code-generator-ff72.onrender.com";
-
 
 // ✅ Define the component function after imports
 const QRCodeForm = () => {
@@ -95,12 +91,14 @@ const QRCodeForm = () => {
     animation: "slideDown 0.3s ease forwards",
   };
 
+  const BASE_URL = "http://localhost:5000";
+
   /** Upload PDF file to the backend */
   const uploadFile = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const response = await fetch("${SERVER_URL}/api/upload", {
+      const response = await fetch(`${BASE_URL}/api/upload`, {
         method: "POST",
         body: formData,
       });
@@ -119,7 +117,7 @@ const QRCodeForm = () => {
       formData.append("photos", file);
     });
     try {
-      const response = await fetch("${SERVER_URL}/api/upload-gallery", {
+      const response = await fetch(`${BASE_URL}/api/upload-gallery`, {
         method: "POST",
         body: formData,
       });
@@ -140,7 +138,7 @@ const QRCodeForm = () => {
     const formData = new FormData();
     formData.append("mp3", file);
     try {
-      const response = await fetch("${SERVER_URL}/api/upload-mp3", {
+      const response = await fetch(`${BASE_URL}/api/upload-mp3`, {
         method: "POST",
         body: formData,
       });
@@ -318,7 +316,7 @@ END:VCARD`;
       }
 
       // Generate PNG QR code
-      const response = await fetch("${SERVER_URL}/api/generate-qr", {
+      const response = await fetch(`${BASE_URL}/api/generate-qr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: formattedText }),
