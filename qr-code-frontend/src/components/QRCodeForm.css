@@ -285,3 +285,34 @@ textarea {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.user-info-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #e0f7fa;
+  border: 1px solid #ccc;
+  padding: 10px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.user-info-text {
+  font-size: 16px;
+}
+
+.logout-button {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.logout-button:hover {
+  background: #b71c1c;
+}
+

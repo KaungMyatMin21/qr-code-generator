@@ -1,5 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ClipLoader } from "react-spinners";
+import { supabase } from "../supabaseClient";
+import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
+
 
 import {
   FaLink,
@@ -23,6 +27,7 @@ const QRCodeForm = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [activeType, setActiveType] = useState(null);
+  const [session, setSession] = useState(null);
   const [qrCodePNG, setQrCodePNG] = useState("");
   
   // Other state variables (for form fields)
@@ -57,6 +62,12 @@ const QRCodeForm = () => {
   const [wifiPassword, setWifiPassword] = useState("");
   const [wifiEncryption, setWifiEncryption] = useState("WPA/WPA2");
   const [wifiHidden, setWifiHidden] = useState(false);
+  // Backend server link (modify here with actual link)
+  const BASE_URL = "https://qr-code-generator-ff72.onrender.com";
+
+  // Get current user ID
+  const userId = session?.user?.id;
+
 
   // Styles
   const overlayStyle = {
@@ -91,66 +102,179 @@ const QRCodeForm = () => {
     animation: "slideDown 0.3s ease forwards",
   };
 
-  const BASE_URL = "https://qr-code-generator-ff72.onrender.com";
+  //Google auth session
+  useEffect(() => {
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
 
-  /** Upload PDF file to the backend */
-  const uploadFile = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const response = await fetch(`${BASE_URL}/api/upload`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      return data.fileUrl;
-    } catch (error) {
-      alert("Failed to upload file.");
-      return null;
-    }
-  };
+    getSession();
 
-  /** Upload multiple photos to the backend */
-  const uploadGallery = async (files) => {
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("photos", file);
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
-    try {
-      const response = await fetch(`${BASE_URL}/api/upload-gallery`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to upload files");
+
+    return () => subscription?.unsubscribe();
+  }, []);  
+
+  // 1. Upload PDF File
+  const uploadPDF = async (file) => {
+    if (!session) {
+      alert("You must be logged in to upload PDFs.");
+      return;
+    }
+  
+    const userId = session.user.id;
+    const filePath = `${userId}/${file.name}`; // user's folder
+  
+    const { data, error } = await supabase.storage
+      .from('pdf-files')
+      .upload(filePath, file, { upsert: true }); // Allow overwrites
+  
+    if (error) {
+      console.error("Failed to upload PDF:", error.message);
+      alert("Upload failed! " + error.message);
+      return null;
+    }
+  
+    console.log("PDF uploaded successfully:", data);
+  
+    // Generate signed URL
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from('pdf-files')
+      .createSignedUrl(filePath, 3600); //Expires in 1 hour
+  
+    if (signedUrlError) {
+      console.error("Failed to generate signed URL:", signedUrlError.message);
+      alert("Failed to retrieve file!");
+      return null;
+    }
+  
+    console.log("Signed URL:", signedUrlData.signedUrl);
+    return signedUrlData.signedUrl;
+  };
+  
+  
+  // 2. Upload Photo Gallery
+  const uploadPhotos = async (files) => {
+    if (!session) {
+      alert("You must be logged in to upload photos.");
+      return;
+    }
+
+    const userId = session.user.id;
+    const urls = [];
+
+    // Clean up old files before upload
+    await cleanUpFiles('photo-gallery', 5, 2);
+
+    for (const file of files) {
+      const filePath = `${userId}/${file.name}`;
+
+      const { data, error } = await supabase.storage
+        .from('photo-gallery')
+        .upload(filePath, file, { upsert: false });
+
+      if (error) {
+        console.error("Failed to upload photo:", error.message);
+        continue;
       }
-      const data = await response.json();
-      return data.fileUrls;
-    } catch (error) {
-      alert("Failed to upload gallery files.");
-      return null;
+
+      // Generate a signed URL
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('photo-gallery')
+        .createSignedUrl(filePath, 3600); 
+
+      if (signedUrlError) {
+        console.error("Failed to generate signed URL:", signedUrlError.message);
+        continue;
+      }
+
+      urls.push(signedUrlData?.signedUrl);
     }
+
+    return urls;
   };
 
-  /** Upload MP3 file to the backend */
+  
+
+  //3. Upload MP3 File
   const uploadMP3 = async (file) => {
-    const formData = new FormData();
-    formData.append("mp3", file);
-    try {
-      const response = await fetch(`${BASE_URL}/api/upload-mp3`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await response.json();
-      return data.fileUrl;
-    } catch (error) {
-      alert("Failed to upload MP3 file.");
+    if (!session) {
+      alert("You must be logged in to upload MP3s.");
+      return;
+    }
+
+    const userId = session.user.id;
+    const filePath = `${userId}/${file.name}`;
+
+    // Clean up old MP3 files before upload
+    await cleanUpFiles('mp3-files', 5, 2);
+
+    const { data, error } = await supabase.storage
+      .from('mp3-files')
+      .upload(filePath, file, { upsert: false });
+
+    if (error) {
+      console.error("Failed to upload MP3:", error.message);
+      alert("Upload failed!");
       return null;
+    }
+
+    // Generate a signed URL
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      .from('mp3-files')
+      .createSignedUrl(filePath, 3600); 
+
+    if (signedUrlError) {
+      console.error("Failed to generate signed URL:", signedUrlError.message);
+      return null;
+    }
+
+    return signedUrlData?.signedUrl;
+  };
+
+
+  //Cleanup Old Files if Limit Exceeded
+  const cleanUpFiles = async (bucketName, fileLimit = 3, deleteCount = 1) => {
+    if (!session) {
+      console.error("No session found. Cannot clean up files.");
+      return;
+    }
+
+    const userId = session.user.id;
+    const folderPath = `${userId}/`;
+
+    // List files in the user's folder only
+    const { data: files, error } = await supabase.storage.from(bucketName).list(folderPath);
+
+    if (error) {
+      console.error(`Failed to list files in ${bucketName}/${folderPath}:`, error);
+      return;
+    }
+
+    // Check if file count exceeds the limit
+    if (files.length > fileLimit) {
+      const sortedFiles = files.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const filesToDelete = sortedFiles.slice(0, deleteCount).map(file => `${folderPath}${file.name}`);
+
+      // Delete the selected files
+      const { error: deleteError } = await supabase.storage.from(bucketName).remove(filesToDelete);
+
+      if (deleteError) {
+        console.error(`Failed to delete files in ${bucketName}/${folderPath}:`, deleteError);
+      } else {
+        console.log(`Deleted ${deleteCount} old files in ${bucketName}/${folderPath}`);
+      }
+    } else {
+      console.log(`No cleanup needed for ${bucketName}/${folderPath}. File count is within the limit.`);
     }
   };
 
-  /** Generate QR Code (PNG) */
+
+
+  //Generate QR Code (PNG) 
   const handleGenerate = async () => {
     let formattedText = "";
     try {
@@ -182,8 +306,9 @@ const QRCodeForm = () => {
           break;
         case "pdf":
           if (pdfFile) {
-            const fileUrl = await uploadFile(pdfFile);
+            const fileUrl = await uploadPDF(pdfFile);
             if (!fileUrl) return;
+            await cleanUpFiles("pdf-files");
             formattedText = fileUrl;
           } else if (pdfURL) {
             formattedText = pdfURL;
@@ -197,8 +322,9 @@ const QRCodeForm = () => {
             alert("Please upload at least one photo.");
             return;
           }
-          const urls = await uploadGallery(galleryFiles);
-          if (!urls) return;
+          const urls = await uploadPhotos(galleryFiles);
+          if (!urls || urls.length === 0) return;
+          await cleanUpFiles("photo-gallery");
           formattedText = urls.join(", ");
           break;
         case "twitter":
@@ -243,9 +369,10 @@ const QRCodeForm = () => {
             alert("Please upload an MP3 file.");
             return;
           }
-          const mp3FileUrl = await uploadMP3(mp3File);
-          if (!mp3FileUrl) return;
-          formattedText = mp3FileUrl;
+          const mp3Url = await uploadMP3(mp3File);
+          if (!mp3Url) return;
+          await cleanUpFiles("mp3-files");
+          formattedText = mp3Url;
           break;
         case "facebook":
           if (facebookOption === "facebook-url") {
@@ -334,8 +461,8 @@ END:VCARD`;
   
   };
 
-  //Revised Download PNG function:
-   
+  //Download PNG function:
+ 
   const handleDownloadPNG = () => {
     if (!qrCodePNG) {
       alert("Please generate a QR code first.");
@@ -370,8 +497,34 @@ END:VCARD`;
     }
   };
 
+  //Logout Function
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert("Failed to log out: " + error.message);
+    } else {
+      setSession(null);
+      alert("Logged out successfully!");
+    }
+  };
+
+
+  
+
   return (
     <div className="QRCodeGenerator">
+      <div className="user-info-container">
+        {session ? (
+          <>
+            <p className="user-info-text">Signed in as: <strong>{session.user.email}</strong></p>
+            <button onClick={handleLogout} className="logout-button">
+              Log Out
+            </button>
+          </>
+        ) : (
+          <p className="user-info-text">Not signed in</p>
+        )}
+      </div>
       <div className="top-section">
         <div className="options-container">
           <h2>Choose Type</h2>
@@ -477,43 +630,78 @@ END:VCARD`;
             {activeType === "pdf" && (
               <>
                 <h3>Enter PDF Details</h3>
-                <input
-                  type="url"
-                  placeholder="Enter PDF URL (Optional)"
-                  value={pdfURL}
-                  onChange={(e) => setPdfURL(e.target.value)}
-                />
-                <h4>Or Upload a PDF</h4>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={(e) => setPdfFile(e.target.files[0])}
-                />
+
+                {session ? (
+                  <>
+                    <div className="user-info">
+                      <p>Logged in as: {session.user.email}</p>
+                    </div>
+
+                    <input
+                      type="url"
+                      placeholder="Enter PDF URL (Optional)"
+                      value={pdfURL}
+                      onChange={(e) => setPdfURL(e.target.value)}
+                    />
+                    <h4>Or Upload a PDF</h4>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setPdfFile(e.target.files[0])}
+                    />
+                  </>
+                ) : (
+                  <div>
+                    <h4>You need to sign in to upload a PDF</h4>
+                    <button onClick={() => supabase.auth.signInWithOAuth({ provider: "google" })}>
+                        Sign in with Google
+                    </button>
+                  </div>
+                )}
               </>
             )}
+
+
             {activeType === "gallery" && (
               <>
                 <h3>Upload Photos</h3>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => setGalleryFiles([...e.target.files])}
-                />
-                <div className="gallery-preview">
-                    {galleryFiles.map((file, index) => (
-                      <div key={index} className="image-container">
-                        <img
-                          src={URL.createObjectURL(file)}
-                          alt={`Preview ${index + 1}`}
-                          className="gallery-image"
-                        />
-                      </div>
-                    ))}
-                </div>
 
+                {session ? (
+                  <>
+                    <div className="user-info">
+                      <p>Logged in as: {session.user.email}</p>
+                    </div>
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => setGalleryFiles([...e.target.files])}
+                    />
+                    <div className="gallery-preview">
+                      {galleryFiles.map((file, index) => (
+                        <div key={index} className="image-container">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Preview ${index + 1}`}
+                            className="gallery-image"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <h4>You need to sign in to upload photos</h4>
+                    <button onClick={() => supabase.auth.signInWithOAuth({ provider: "google" })}>
+                      Sign in with Google
+                    </button>
+                  </div>
+                )}
               </>
             )}
+
+
             {activeType === "twitter" && (
               <>
                 <h3>Twitter Options</h3>
@@ -594,14 +782,30 @@ END:VCARD`;
             {activeType === "mp3" && (
               <>
                 <h3>Upload MP3 File</h3>
-                <input
-                  type="file"
-                  accept="audio/mpeg, audio/mp3"
-                  onChange={(e) => setMp3File(e.target.files[0])}
-                  required
-                />
+
+                {session ? (
+                  <>
+                    <div className="user-info">
+                      <p>Logged in as: {session.user.email}</p>
+                    </div>
+
+                    <input
+                      type="file"
+                      accept="audio/mpeg, audio/mp3"
+                      onChange={(e) => setMp3File(e.target.files[0])}
+                    />
+                  </>
+                ) : (
+                  <div>
+                    <h4>You need to sign in to upload MP3 files</h4>
+                    <button onClick={() => supabase.auth.signInWithOAuth({ provider: "google" })}>
+                      Sign in with Google
+                    </button>
+                  </div>
+                )}
               </>
             )}
+
             {activeType === "facebook" && (
               <>
                 <h3>Facebook Options</h3>
