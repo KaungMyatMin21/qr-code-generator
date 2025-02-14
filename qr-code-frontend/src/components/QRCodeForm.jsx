@@ -237,7 +237,7 @@ const QRCodeForm = () => {
 
 
   //Cleanup Old Files if Limit Exceeded
-  const cleanUpFiles = async (bucketName, fileLimit = 3, deleteCount = 1) => {
+  const cleanUpFiles = async (bucketName, fileLimit = 50, deleteCount = 10) => {
     if (!session) {
       console.error("No session found. Cannot clean up files.");
       return;
